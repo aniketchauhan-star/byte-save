@@ -144,7 +144,16 @@
 <button class="arrow prev" id="prev" aria-label="Previous page">‹</button>
 <button class="arrow next" id="next" aria-label="Next page">›</button>
 
-<!-- (The embedded LBD game has been removed — this is a plain 2-page flipbook.) -->
+<!-- EMBEDDED LBD GAME OVERLAY ("Byte's Energy Hunt").
+     A body-level element (NOT inside .scene/.flip-scale) so it can expand to a TRUE
+     full-screen box — a CSS transform on .flip-scale would otherwise trap the fixed
+     positioning and break real fullscreen. script.js sizes/positions it and toggles
+     .fullscreen; the game is loaded into #lbdFrame only when you reach its page. -->
+<div class="lbd-stage" id="lbdStage" aria-hidden="true">
+  <iframe id="lbdFrame" title="Byte's Energy Hunt — game"
+          allow="autoplay; fullscreen" allowfullscreen
+          referrerpolicy="no-referrer"></iframe>
+</div>
 
 <!-- Inlined one-shot SFX (base64) for glitch-free Web Audio playback on file:// -->
 <script src="sfx-data.js"></script>

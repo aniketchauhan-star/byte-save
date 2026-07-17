@@ -55,10 +55,18 @@ console.log("%c✅ [The Story Night] loaded — 3D flipbook · full-bleed pages 
 // counter update automatically.
 const pages = [
   { type: "video", src: "assets/1.mp4" },   // 1 — opening video
-  { type: "video", src: "assets/3.mp4" },   // 2
-  { type: "video", src: "assets/4.mp4" },   // 3
-  { type: "video", src: "assets/5.mp4" },   // 4
-  { type: "end" },                           // 5 — THE END page (cream) + Replay
+  { type: "video", src: "assets/2.mp4" },   // 2
+  { type: "video", src: "assets/3.mp4" },   // 3
+  // 4 — EMBEDDED GAME 1 (right after page 3): "Byte's Energy Hunt". Flipping here takes
+  // over the whole screen; finishing it (tap Next on the win splash) turns the page
+  // automatically. `src` = the game's index.html; `poster` shows on the leaf during the
+  // flip + as the iframe backdrop while loading.
+  { type: "lbd", src: "LBD%201/index.html", poster: "LBD%201/assets/Background.webp" },
+  { type: "video", src: "assets/4.mp4" },   // 5 — story page 4
+  // 6 — EMBEDDED GAME 2 (right after page 4): "Right & Left — deliver the parcels".
+  // Same fullscreen behaviour; finishing it turns to THE END page.
+  { type: "lbd", src: "LBD%202/Right-and-Left/index.html", poster: "LBD%202/Right-and-Left/Assets/UI/start-screen.webp" },
+  { type: "end" },                           // 7 — THE END page (cream) + Replay
 ];
 
 /* ============================================================================
@@ -211,8 +219,12 @@ const coverScene  = document.getElementById("coverScene");
 // book frame forms the left spine/cover edge (always visible when open); pages
 // flip normally. No two-page spread.
 const totalPages = pages.length;
-// Which leaf is the embedded LBD game (-1 if none). Used to show/hide the overlay.
+// Embedded games: there can be MORE THAN ONE lbd page. One overlay iframe is reused
+// for whichever game page you're on (only one is ever shown at a time). LBD_INDEX
+// stays as a simple "is there any game at all?" flag (-1 = none); isLbdPage(i) tests
+// a specific leaf.
 const LBD_INDEX = pages.findIndex(function (p) { return p.type === "lbd"; });
+function isLbdPage(i) { return !!(pages[i] && pages[i].type === "lbd"); }
 
 // Each leaf is a full 16:9 page hinged on the LEFT spine:
 //   • FRONT = the page's full-bleed image / video (+ its speech bubble, if any).
@@ -286,17 +298,20 @@ let lbdStarted    = false;   // has the child tapped Start at least once this vi
 let lbdWasOn      = false;   // was the overlay showing on the previous refresh?
 let lbdExiting    = false;   // guard so "complete" only advances once
 
-// Show the blurred pre-LBD backdrop inside the frame while the game is loading
-// (and while it's unloaded) so there is no dark flash — it matches the game's
-// own splash background, so the live home screen fades in seamlessly.
-if (lbdFrame && LBD_INDEX >= 0 && pages[LBD_INDEX].poster) {
-  lbdFrame.style.background = "#0a0f2d url('" + pages[LBD_INDEX].poster + "') center/cover no-repeat";
-}
-// Load the game into the iframe on demand (never on flipbook boot — it's heavy).
+// A neutral dark backdrop shows inside the frame while a game loads / is unloaded so
+// there's no flash; the CURRENT game's own splash poster is layered on in
+// ensureLbdLoaded so its home screen fades in seamlessly.
+if (lbdFrame) lbdFrame.style.background = "#0a0f2d";
+// Load the CURRENT page's game into the iframe on demand (never on flipbook boot —
+// it's heavy). dataset.loaded holds WHICH game src is live, so switching between
+// game pages reloads the right one.
 function ensureLbdLoaded() {
-  if (LBD_INDEX < 0 || !lbdFrame || lbdFrame.dataset.loaded) return;
-  lbdFrame.src = pages[LBD_INDEX].src;
-  lbdFrame.dataset.loaded = "1";
+  const p = pages[flipped];
+  if (!lbdFrame || !p || p.type !== "lbd") return;
+  if (lbdFrame.dataset.loaded === p.src) return;      // this game is already loaded
+  if (p.poster) lbdFrame.style.background = "#0a0f2d url('" + p.poster + "') center/cover no-repeat";
+  lbdFrame.src = p.src;
+  lbdFrame.dataset.loaded = p.src;
 }
 // Unload the game so the NEXT visit starts fresh at the pre-LBD home screen.
 function resetLbd() {
@@ -325,6 +340,13 @@ function setLbdFullscreen(on) {
   document.body.classList.toggle("lbd-fullscreen", on);
   clearTimeout(lbdAnimTimer);
   lbdAnimTimer = setTimeout(function () { lbdStage.classList.remove("lbd-anim"); }, 460);
+  // The game plays its OWN theme (louder) while it's up. Pause the flipbook's 20%
+  // background music so the same track doesn't double up, then bring it back when
+  // we shrink out of the game (heading to the next page).
+  try {
+    if (on) { bgMusic.pause(); }
+    else if (opened) { playBgMusic(); }
+  } catch (_) {}
 }
 // Show the overlay + LOAD the game ONLY once we've fully landed on the LBD page,
 // and UNLOAD it the moment we leave. The game is never loaded on approach: it
@@ -332,13 +354,15 @@ function setLbdFullscreen(on) {
 // loading it early would leak "Stairway Shuffle" audio onto the previous page.
 function updateLbdOverlay() {
   if (LBD_INDEX < 0 || !lbdStage) return;
-  const onLbd = opened && ready && !animating && flipped === LBD_INDEX;
+  const onLbd = opened && ready && !animating && isLbdPage(flipped);
   if (onLbd) {
     ensureLbdLoaded();                    // load only now → sound starts when you REACH the page
-    if (!lbdFullscreen) positionLbdStage();
     lbdStage.classList.add("visible");
     lbdStage.setAttribute("aria-hidden", "false");
     lbdWasOn = true;
+    // Per request: the game takes over the WHOLE screen the instant you flip to it
+    // (not a small panel printed inside the book). Expand straight to fullscreen.
+    if (!lbdFullscreen) setLbdFullscreen(true);
   } else if (!lbdFullscreen) {           // never hide mid-game (we can't leave while fullscreen)
     lbdStage.classList.remove("visible");
     lbdStage.setAttribute("aria-hidden", "true");
@@ -356,7 +380,7 @@ function exitLbd() {
   setLbdFullscreen(false);                // shrink the game back into the page
   setTimeout(function () {
     lbdExiting = false;
-    if (flipped === LBD_INDEX) goNext();  // auto-advance to the next story page
+    if (isLbdPage(flipped)) goNext();     // auto-advance to the next story page
   }, 470);                                // just after the shrink transition (.4s)
 }
 // Listen for the game's messages (start → fullscreen, complete → advance).
@@ -909,9 +933,11 @@ window.addEventListener("keydown",     _titleGesture, true);
 window.addEventListener("touchstart",  _titleGesture, true);
 playTitleVo();   // try to autoplay the moment the flipbook loads
 
-// Looping BACKGROUND MUSIC at 40% volume. Started on open (a user gesture) so
-// the browser allows it to play with sound.
-const bgMusic = new Audio("sfx/BG%20Music.mp3");
+// Looping BACKGROUND MUSIC — the SAME theme the LBD game uses, played across the
+// flipbook pages at 20% volume (per request). Started on open (a user gesture) so
+// the browser allows it to play with sound; paused while the game is on screen (the
+// game plays this theme itself, louder) — see setLbdFullscreen().
+const bgMusic = new Audio("LBD%201/audios/themeMusic.ogg");
 bgMusic.loop = true;
 bgMusic.volume = 0.20;                      // 20% volume, per request
 bgMusic.preload = "auto";
@@ -1084,7 +1110,7 @@ let peekTimers = [];
 
 function canShowHint() {
   return opened && ready && !animating && !lbdFullscreen &&
-         flipped < totalPages - 1 && flipped !== LBD_INDEX && !document.hidden;
+         flipped < totalPages - 1 && !isLbdPage(flipped) && !document.hidden;
 }
 function positionFlipHint() {
   if (!flipScaleEl) return;
