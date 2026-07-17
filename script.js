@@ -55,11 +55,10 @@ console.log("%c✅ [The Story Night] loaded — 3D flipbook · full-bleed pages 
 // counter update automatically.
 const pages = [
   { type: "video", src: "assets/1.mp4" },   // 1 — opening video
-  { type: "video", src: "assets/2.mp4" },   // 2
-  { type: "video", src: "assets/3.mp4" },   // 3
-  { type: "video", src: "assets/4.mp4" },   // 4
-  { type: "video", src: "assets/5.mp4" },   // 5
-  { type: "end" },                           // 6 — THE END page (cream) + Replay
+  { type: "video", src: "assets/3.mp4" },   // 2
+  { type: "video", src: "assets/4.mp4" },   // 3
+  { type: "video", src: "assets/5.mp4" },   // 4
+  { type: "end" },                           // 5 — THE END page (cream) + Replay
 ];
 
 /* ============================================================================
