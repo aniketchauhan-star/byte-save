@@ -678,7 +678,7 @@
   .play-btn {
     position: absolute; left: 52%; top: 80%; transform: translate(-50%, -50%);
     z-index: 2;                                 /* above the full-bleed artwork */
-    width: clamp(78px, 9vw, 110px); height: clamp(83px, 9vw, 110px);  /* big + poppy */
+    width: clamp(112px, 13vw, 160px); height: clamp(112px, 13vw, 160px);  /* big + poppy */
     border: none; padding: 0; cursor: pointer;
     /* the artwork already carries the glow/ring/triangle — just drop it in */
     background: url("assets/play%20button.png") center / cover no-repeat;
