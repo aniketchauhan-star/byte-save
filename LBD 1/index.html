@@ -593,18 +593,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1b12;
 /* Glossy 3D blue NEXT button (bottom-right), matching the start-gate art style */
 #win button{position:absolute;
   right:calc(9% + env(safe-area-inset-right,0px));bottom:calc(9% + env(safe-area-inset-bottom,0px));
+  display:inline-flex;align-items:center;gap:.45em;
   font:inherit;font-weight:900;font-size:clamp(18px,4.4vw,34px);letter-spacing:.04em;
   color:#fff;text-shadow:0 2px 0 rgba(10,55,90,.5),0 4px 7px rgba(0,0,0,.3);
-  padding:.4em 1.7em .46em;border-radius:999px;cursor:pointer;
+  padding:.4em 1.5em .46em 1.7em;border-radius:999px;cursor:pointer;
   border:4px solid #eaf7ff;
   background:linear-gradient(#5ed0f5,#2299d6 55%,#1577b3);
   box-shadow:0 9px 0 #0f5a86, 0 14px 20px rgba(0,0,0,.32),
              inset 0 4px 5px rgba(255,255,255,.6), inset 0 -6px 9px rgba(0,40,70,.28);
-  animation:playPulse 1.3s ease-in-out infinite;
+  /* winPulse (scale only) — NOT playPulse: playPulse bakes in translateX(-50%) for the
+     centred start button, which would shove this right-anchored button sideways and make
+     it jump the moment :active drops that translate. */
+  animation:winPulse 1.3s ease-in-out infinite;
   transition:transform .1s ease, box-shadow .1s ease;}
-#win button:active{animation:none;transform:translateY(5px);
+#win button .arrow{font-size:.9em;line-height:1;transform:translateY(.02em);}
+#win button:active{animation:none;transform:translateY(5px) scale(.98);
   box-shadow:0 3px 0 #0f5a86, 0 6px 10px rgba(0,0,0,.32),
              inset 0 4px 5px rgba(255,255,255,.55), inset 0 -6px 9px rgba(0,40,70,.28);}
+/* Once tapped the button is disabled for a beat while the page turns — keep it looking the
+   same (no UA-default greying) and freeze the pulse so it reads as "pressed", not broken. */
+#win button:disabled{opacity:1;animation:none;cursor:default;}
+@keyframes winPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 </style>
 </head>
 <body>
@@ -751,9 +760,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1b12;
     <button class="play-btn" type="button" aria-label="Play"><img src="assets/play-button.webp" alt="" draggable="false" /></button>
   </div>
 
-  <!-- Win — PostLBD celebration splash -->
+  <!-- Win — PostLBD celebration splash. The button carries the child onward: embedded in the
+       flipbook it turns to the next story page; opened standalone it restarts the game. -->
   <div id="win">
-    <button id="replayBtn" type="button">Next</button>
+    <button id="replayBtn" type="button" aria-label="Continue to the next page">
+      <span class="label">Continue</span><span class="arrow" aria-hidden="true">▶</span>
+    </button>
   </div>
 
   <!-- Rotate-to-landscape gate (shown only in portrait; blocks input, never resets progress) -->
@@ -1873,7 +1885,12 @@ class GameManager {
     // preload the farm backgrounds so the per-level swap is instant (no flash)
     for (let n = 2; n <= 9; n++){ const im = new Image(); im.src = `assets/${LEVEL_CONFIG[n].background}`; }
 
-    $('#replayBtn').addEventListener('click', () => {
+    $('#replayBtn').addEventListener('click', (e) => {
+      // One tap only: a rapid double-tap could re-fire before the flipbook's own guard
+      // resets, so disable the button the instant it's used.
+      const btn = e.currentTarget;
+      if (btn.disabled) return;
+      btn.disabled = true;
       // Embedded inside the flipbook? Tell the parent the game is finished so it turns
       // to the next page. Opened standalone? Fall back to restarting the game.
       if (window.parent && window.parent !== window) {
@@ -2243,6 +2260,7 @@ class GameManager {
   async win(){
     this.ui.hideInstruction();
     playSound('win');
+    $('#replayBtn').disabled = false;  // fresh, tappable each time the splash appears
     $('#win').classList.add('show');   // reveal the PostLBD celebration splash
     this.particles.confetti();         // 5s two-sided fireworks (canvas-confetti)
   }
