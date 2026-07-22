@@ -465,8 +465,8 @@
 
     <!-- END SCREEN -->
     <div id="endScreen" class="screen hide">
-      <!-- looping celebration video, WITH its own audio (background music fades out as it starts) -->
-      <video id="endVideo" class="full" loop playsinline preload="auto" aria-label="Well done"><source src="Assets/Video/Lastscreen.webm" type="video/webm" /></video>
+      <!-- celebration video, WITH its own audio (background music fades out as it starts) — plays ONCE and holds on its last frame -->
+      <video id="endVideo" class="full" playsinline preload="auto" aria-label="Well done"><source src="Assets/Video/Lastscreen.webm" type="video/webm" /></video>
       <!-- Continue: when embedded in the flipbook this turns to the next page; standalone it replays. -->
       <button id="lbdNextBtn" type="button" aria-label="Continue">Next <span aria-hidden="true">▶</span></button>
     </div>
@@ -1026,7 +1026,8 @@ async function showHouseBadge(el, side){   // pop a bubble over a house — repl
 }
 async function showDelivered(side){   // "Delivered! ✓" over the winning house
   score++;                             // counted quietly — only the end screen shows a total
-  voSay(Math.random()<0.5 ? "delivered" : "parcel-delivered");   // two recorded takes — alternating keeps repeat plays fresh
+  // two recorded takes — alternating keeps repeat plays fresh; the clap waits its turn so it never talks over the line
+  voSay(Math.random()<0.5 ? "delivered" : "parcel-delivered").then(sfxClap);
   await showHouseBadge(deliveredBadge, side);
 }
 function hideParcel(){ parcel.classList.add("hide"); }
@@ -1829,7 +1830,7 @@ async function playLevel(){
     await dogCatchScene(side, hf);              // dog hops out, Byte hands over the parcel, dog catches it & carries it inside
     await houseHappy(side);                     // the house does a joyful little hop
     await houseClose(side);                     // door shuts
-    sfxClap(); confetti(); byteAnim.classList.add("cheer");   // claps + confetti — no popup card
+    confetti(); byteAnim.classList.add("cheer");   // confetti — the clap follows the VO inside showDelivered
     await showDelivered(side);                  // "Delivered! ✓" bubble over the house
     byteAnim.classList.remove("cheer");
     await walkPath(P.exit, false);              // walk off-frame after delivering
@@ -1859,6 +1860,8 @@ async function endGame(){
     endScreen.classList.remove("hide");
     stopMusic();                                  // the video takes over — fade the background track out
     try{
+      endVideo.loop=false;                        // celebration plays ONCE — never loop back to the start
+      endVideo.onended=()=>{ try{ endVideo.pause(); endVideo.currentTime=Math.max(0, endVideo.duration-0.05); }catch(e){} };  // hold on the last frame
       endVideo.currentTime=0; endVideo.muted=false;
       const p=endVideo.play();
       if(p&&p.catch) p.catch(()=>{ endVideo.muted=true; const q=endVideo.play(); if(q&&q.catch) q.catch(()=>{}); });  // audio blocked → at least keep the visuals
